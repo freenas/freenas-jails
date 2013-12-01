@@ -23,6 +23,8 @@ ARCH=	x32
 list:
 	@echo ${TARGETS}
 
+help: list
+
 pluginjail_x32:
 	@cd ${TOP};
 	${CREATE_JAIL} -t pluginjail -a x32 -r ${RELEASE} -m ${MIRROR}

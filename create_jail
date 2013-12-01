@@ -93,7 +93,8 @@ create_pluginjail()
 	echo "nameserver 8.8.8.8" > "${jdir}/etc/resolv.conf"
 	for pkg in $(get_pluginjail_packages)
 	do
-		chroot "${jdir}" /usr/sbin/pkg install -y ${pkg}
+		env ASSUME_ALWAYS_YES=1 \
+			chroot "${jdir}" /usr/sbin/pkg install -y ${pkg}
 	done
 
 	tar -cvjf - -C "${jdir}" . > "${jails_dir}/${arch}/${name}-${release}.tgz" 2>/dev/null
