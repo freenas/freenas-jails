@@ -168,7 +168,7 @@ check_arch()
 
 	arch="$(echo "${arch}"|tr A-Z a-z)"
 	case "${arch}" in
-		x32)
+		x86)
 			return 0
 			;;
 		x64)
@@ -184,7 +184,7 @@ to_FreeBSD_arch()
 	local arch="${1}"
 
 	case "${arch}" in
-		x32)
+		x86)
 			echo "i386"
 			;;
 		x64)
@@ -226,7 +226,7 @@ usage()
 usage: $(basename $0) [options]
 Where option is:
     -t <pluginjail|standard|portjail>  # Type of jail to create
-    -a <x32|x64>                       # FreeBSD architecture to use
+    -a <x86|x64>                       # FreeBSD architecture to use
     -r <release>                       # FreeBSD release to use
     -m <mirror>                        # FreeBSD mirror to use
     -n <name>                          # Name of jail

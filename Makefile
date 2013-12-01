@@ -15,7 +15,7 @@ ARCH!=	uname -m
 .if ${ARCH} == "amd64"
 ARCH=	x64
 .else
-ARCH=	x32
+ARCH=	x86
 .endif
 
 .include <bsd.prog.mk>
@@ -25,33 +25,33 @@ list:
 
 help: list
 
-pluginjail_x32:
+pluginjail_x86:
 	@cd ${TOP};
-	${CREATE_JAIL} -t pluginjail -a x32 -r ${RELEASE} -m ${MIRROR}
+	${CREATE_JAIL} -t pluginjail -a x86 -r ${RELEASE} -m ${MIRROR}
 
 pluginjail_x64:
 	@cd ${TOP};
 	${CREATE_JAIL} -t pluginjail -a x64 -r ${RELEASE} -m ${MIRROR}
 
-standard_x32:
+standard_x86:
 	@cd ${TOP};
-	${CREATE_JAIL} -t standard -a x32 -r ${RELEASE} -m ${MIRROR}
+	${CREATE_JAIL} -t standard -a x86 -r ${RELEASE} -m ${MIRROR}
 
 standard_x64:
 	@cd ${TOP};
 	${CREATE_JAIL} -t standard -a x64 -r ${RELEASE} -m ${MIRROR}
 
-portjail_x32:
+portjail_x86:
 	@cd ${TOP};
-	${CREATE_JAIL} -t portjail -a x32 -r ${RELEASE} -m ${MIRROR}
+	${CREATE_JAIL} -t portjail -a x86 -r ${RELEASE} -m ${MIRROR}
 
 portjail_x64:
 	@cd ${TOP};
 	${CREATE_JAIL} -t portjail -a x64 -r ${RELEASE} -m ${MIRROR}
 
-pluginjail: pluginjail_x32 pluginjail_x64
-standard: standard_x32 standard_x64
-portjail: portjail_x32 portjail_x64
+pluginjail: pluginjail_x86 pluginjail_x64
+standard: standard_x86 standard_x64
+portjail: portjail_x86 portjail_x64
 
 clean:
 	find ${TOP} | xargs chflags noschg
