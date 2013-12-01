@@ -1,0 +1,297 @@
+#!/bin/sh
+
+jails_top="$(pwd)"
+jails_dir="${jails_top}/jails"
+
+do_create_jail()
+{
+	local release="${1}"
+	local arch="${2}"
+	local mirror="${3}"
+	local name="${4}"
+	local distfiles="${5}"
+	local fbsdarch
+	local path
+	local jdir
+	local cache
+
+	if [ -z "${distfiles}" ]
+	then
+		distfiles="base.txz doc.txz games.txz"
+	fi
+
+	fbsdarch="$(to_FreeBSD_arch "${arch}")"
+	if [ "${fbsdarch}" = "amd64" ]
+	then
+		distfiles="${distfiles} lib32.txz"
+	fi
+
+	path="${mirror}/pub/FreeBSD/releases/${fbsdarch}/${fbsdarch}/${release}"
+
+	jdir="${jails_dir}/${arch}/${name}-${release}"
+	cache="${jails_dir}/${arch}/.${name}-${release}"
+
+	mkdir -p "${jdir}" "${cache}"
+	chown root:wheel "${jdir}" "${cache}"
+
+	for f in ${distfiles}
+	do
+		if [ ! -f "${cache}/${f}" ]
+		then
+			fetch -o "${cache}/${f}" "${path}/${f}"
+		fi
+	done
+
+	for f in ${distfiles}
+	do
+		tar -xvf "${cache}/${f}" -C "${jdir}"
+	done
+}
+
+get_pluginjail_packages()
+{
+	cat <<-__EOF__
+		archivers/lzo2
+		converters/base64
+		converters/iconv
+		converters/libiconv
+		databases/db42
+		databases/gdbm
+		databases/sqlite3
+		devel/apr1
+		devel/gettext
+		devel/libtool
+		devel/pcre
+		devel/pkgconf
+		devel/py-distribute
+		devel/subversion
+		dns/libidn
+		ftp/wget
+		lang/python27
+		ports-mgmt/pkg
+		security/ca_root_nss
+		textproc/expat2
+		textproc/libxml2
+		www/aria2
+		www/neon29
+__EOF__
+}
+
+create_pluginjail()
+{
+	local release="${1}"
+	local arch="${2}"
+	local mirror="${3}"
+	local name="${4}"
+	local jdir
+
+	do_create_jail "${release}" "${arch}" \
+		"${mirror}" "${name}"
+
+	jdir="${jails_dir}/${arch}/${name}-${release}"
+
+	echo "nameserver 8.8.8.8" > "${jdir}/etc/resolv.conf"
+	for pkg in $(get_pluginjail_packages)
+	do
+		chroot "${jdir}" /usr/sbin/pkg install -y ${pkg}
+	done
+
+	tar -cvjf - -C "${jdir}" . > "${jails_dir}/${arch}/${name}-${release}.tgz" 2>/dev/null
+}
+
+create_standard()
+{
+	local release="${1}"
+	local arch="${2}"
+	local mirror="${3}"
+	local name="${4}"
+	local jdir
+
+	do_create_jail "${release}" "${arch}" \
+		"${mirror}" "${name}"
+
+	jdir="${jails_dir}/${arch}/${name}-${release}"
+	tar -cvjf - -C "${jdir}" . > "${jails_dir}/${arch}/${name}-${release}.tgz" 2>/dev/null
+}
+
+create_portjail()
+{
+	local release="${1}"
+	local arch="${2}"
+	local mirror="${3}"
+	local name="${4}"
+	local distfiles="base.txz doc.txz games.txz src.txz ports.txz"
+	local jdir
+
+	do_create_jail "${release}" "${arch}" \
+		"${mirror}" "${name}" "${distfiles}"
+
+	jdir="${jails_dir}/${arch}/${name}-${release}"
+	tar -cvjf - -C "${jdir}" . > "${jails_dir}/${arch}/${name}-${release}.tgz" 2>/dev/null
+}
+
+create_jail()
+{
+	local jailtype="${1}"
+	local release="${2}"
+	local arch="${3}"
+	local mirror="${4}"
+	local name="${5}"
+
+	case "${jailtype}" in
+		pluginjail)
+			create_pluginjail \
+				"${release}" "${arch}" "${mirror}" "${name}"
+			;;
+		standard)
+			create_standard \
+				"${release}" "${arch}" "${mirror}" "${name}"
+			;;
+		portjail)
+			create_portjail \
+				"${release}" "${arch}" "${mirror}" "${name}"
+			;;
+	esac
+
+	return $?
+}
+
+check_arch()
+{
+	local arch="${1}"
+
+	if [ -z "${arch}" ]
+	then
+		return 1
+	fi
+
+	arch="$(echo "${arch}"|tr A-Z a-z)"
+	case "${arch}" in
+		x32)
+			return 0
+			;;
+		x64)
+			return 0
+			;;
+	esac
+
+	return 1
+}
+
+to_FreeBSD_arch()
+{
+	local arch="${1}"
+
+	case "${arch}" in
+		x32)
+			echo "i386"
+			;;
+		x64)
+			echo "amd64"
+			;;
+	esac
+
+	return
+}
+
+check_jailtype()
+{
+	local jailtype="${1}"
+
+	if [ -z "${jailtype}" ]
+	then
+		return 1
+	fi
+
+	jailtype="$(echo "${jailtype}"|tr A-Z a-z)"
+	case "${jailtype}" in
+		pluginjail)
+			return 0
+			;;
+		standard)
+			return 0
+			;;
+		portjail)
+			return 0
+			;;
+	esac
+
+	return 1
+}
+
+usage()
+{
+	cat <<- __EOF__
+usage: $(basename $0) [options]
+Where option is:
+    -t <pluginjail|standard|portjail>  # Type of jail to create
+    -a <x32|x64>                       # FreeBSD architecture to use
+    -r <release>                       # FreeBSD release to use
+    -m <mirror>                        # FreeBSD mirror to use
+    -n <name>                          # Name of jail
+
+__EOF__
+}
+
+main()
+{
+	local arch="x64"
+	local jailtype="pluginjail"
+	local release="9.2-RELEASE"
+	local mirror="ftp://ftp.freebsd.org"
+	local name="freenas-${jailtype}"
+
+	if [ "$(id -u)" != "0" ]
+	then
+		echo "$(basename $0): Must be root"
+		exit 2
+	fi
+
+	while getopts "t:a:r:m:n:" opt
+	do
+		case "${opt}" in 
+			t)	jailtype="${OPTARG}"
+				if ! check_jailtype "${jailtype}"
+				then
+					echo "$(basename $0): Invalid jail type specified"
+					exit 3
+				fi
+				name="freenas-${jailtype}"
+				;;
+
+			a)	arch="${OPTARG}"
+				if ! check_arch "${arch}"
+				then
+					echo "$(basename $0): Invalid architecture specified"
+					exit 4
+				fi
+				;;
+
+			r)	release="${OPTARG}" ;;
+			m)	mirror="${OPTARG}" ;;
+			n)	name="${OPTARG}" ;;
+
+			\?)	usage
+				exit 1
+				;;
+		esac
+	done
+
+	if [ ! -d "${jails_dir}" ]
+	then
+		mkdir -p "${jails_dir}"
+		if [ "$?" != "0" ]
+		then
+			echo "$(basename $0): Unable to create ${jails_dir}"
+			exit 5
+		fi
+		chown root:wheel "${jails_dir}"
+	fi
+
+	create_jail "${jailtype}" "${release}" \
+		"${arch}" "${mirror}" "${name}"
+
+	return $?
+}
+
+main $*
