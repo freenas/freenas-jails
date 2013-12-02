@@ -96,6 +96,7 @@ create_pluginjail()
 		env ASSUME_ALWAYS_YES=1 \
 			chroot "${jdir}" /usr/sbin/pkg install -y ${pkg}
 	done
+	chroot "${jdir}" /bin/mkdir /.plugins
 
 	tar -cvjf - -C "${jdir}" . > "${jails_dir}/${arch}/${name}-${release}.tgz" 2>/dev/null
 }
