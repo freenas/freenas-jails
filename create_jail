@@ -1,5 +1,6 @@
 #!/bin/sh
 
+
 jails_top="$(pwd)"
 jails_dir="${jails_top}/jails"
 jails_src="${jails_top}/src"
@@ -69,34 +70,14 @@ get_pluginjail_packages()
 __EOF__
 }
 
-old_create_pluginjail()
-{
-	local release="${1}"
-	local arch="${2}"
-	local mirror="${3}"
-	local name="${4}"
-	local jdir
-
-	do_create_jail "${release}" "${arch}" \
-		"${mirror}" "${name}"
-
-	jdir="${jails_dir}/${arch}/${name}-${release}"
-
-	echo "nameserver 8.8.8.8" > "${jdir}/etc/resolv.conf"
-	for pkg in $(get_pluginjail_packages)
-	do
-		env ASSUME_ALWAYS_YES=1 \
-			chroot "${jdir}" /usr/sbin/pkg install -y ${pkg}
-	done
-	chroot "${jdir}" /bin/mkdir /.plugins
-
-	tar -cvjf - -C "${jdir}" . > "${jails_dir}/${arch}/${name}-${release}.tgz" 2>/dev/null
-}
-
 do_create_jail()
 {
 	local destdir="${1}"
-	local arch="${2}"
+	local release="${2}"
+	local arch="${3}"
+	local mirror="${4}"
+	local jailtype="${5}"
+	local sourcebuild="${6}"
 	local here="$(pwd)"
 	local fbsdarch
 
@@ -114,12 +95,58 @@ do_create_jail()
 		exit 1
 	fi
 
-	cd "${jails_src}/FreeBSD"
-	env MAKEOBJDIRPREFIX="${jails_build}" \
-		make "${jails_buildflags}" TARGET="${fbsdarch}" DESTDIR="${destdir}" installworld
-	env MAKEOBJDIRPREFIX="${jails_build}" \
-		make "${jails_buildflags}" TARGET="${fbsdarch}" DESTDIR="${destdir}" distribution
-	cd "${here}"
+	if [ "${sourcebuild}" = "1" ]
+	then
+		cd "${jails_src}/FreeBSD"
+		env MAKEOBJDIRPREFIX="${jails_build}" \
+			make "${jails_buildflags}" TARGET="${fbsdarch}" \
+				DESTDIR="${destdir}" installworld
+		env MAKEOBJDIRPREFIX="${jails_build}" \
+			make "${jails_buildflags}" TARGET="${fbsdarch}" \
+				DESTDIR="${destdir}" distribution
+		cd "${here}"
+	else
+		local distfiles="base.txz doc.txz games.txz"
+		local cache="$(echo "${destdir}"|sed -E 's|\/([^/]+)$|/.\1|')"
+		local path
+
+		if [ "${jailtype}" = "portjail" ]
+		then
+			distfiles="${distfiles} src.txz ports.txz"
+		fi
+		if [ "${fbsdarch}" = "amd64" ]
+		then
+			distfiles="${distfiles} lib32.txz"
+		fi
+
+		mkdir -p "${cache}"
+		chown root:wheel "${cache}"
+
+		path="${mirror}/pub/FreeBSD/releases/${fbsdarch}/${fbsdarch}/${release}"
+		for f in ${distfiles}
+		do
+			if [ ! -s "${cache}/${f}" ]
+			then
+				fetch -o "${cache}/${f}" "${path}/${f}"
+			fi
+		done
+		for f in ${distfiles}
+		do
+			tar -pxvf "${cache}/${f}" -C "${destdir}"
+		done
+
+		echo "WITH_PKGNG=yes" >> "${destdir}/etc/make.conf"
+
+		mkdir -p "${destdir}/usr/local/etc/pkg/repos"
+		cat<<-__EOF__>>"${destdir}/usr/local/etc/pkg/repos/FreeBSD.conf"
+		FreeBSD: {
+		    url: "pkg+http://pkg.FreeBSD.org/\${ABI}/latest",
+		    mirror_type: "srv",
+		    enabled: yes
+		}
+__EOF__
+
+	fi
 
 	return 0
 }
@@ -129,19 +156,24 @@ create_pluginjail()
 	local release="${1}"
 	local arch="${2}"
 	local mirror="${3}"
+	local sourcebuild="${4}"
 	local destdir="${jails_dir}/${arch}/freenas-pluginjail-${release}"
 
-	do_create_jail "${destdir}" "${arch}"
-
+	do_create_jail "${destdir}" "${release}" "${arch}" \
+		"${mirror}" "pluginjail" "${sourcebuild}"
 	echo "nameserver 8.8.8.8" > "${destdir}/etc/resolv.conf"
+	env ASSUME_ALWAYS_YES=1 \
+			chroot "${destdir}" /usr/sbin/pkg install -y pkg
+	rm -f "${destdir}/usr/local/etc/pkg.conf"
 	for pkg in $(get_pluginjail_packages)
 	do
 		env ASSUME_ALWAYS_YES=1 \
 			chroot "${destdir}" /usr/sbin/pkg install -y ${pkg}
+
 	done
 	chroot "${destdir}" /bin/mkdir /.plugins
 
-	tar -cvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
 	return 0
 }
 
@@ -150,13 +182,35 @@ create_standard()
 	local release="${1}"
 	local arch="${2}"
 	local mirror="${3}"
+	local sourcebuild="${4}"
 	local here="$(pwd)"
 	local destdir="${jails_dir}/${arch}/freenas-standard-${release}"
+	local res
 
-	do_create_jail "${destdir}" "${arch}"
+	if [ -f "${destdir}.tgz.sha256" ]
+	then
+		local sha256_1="$(sha256 -q "${destdir}.tgz")"
+		local sha256_2="$(cat "${destdir}.tgz.sha256")"
+		if [ "${sha256_1}" != "${sha256_2}" ]
+		then
+			rm -f "${destdir}.tgz"
+		else
+			return 0	
+		fi
+	fi
 
-	tar -cvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
-	return $?
+	do_create_jail "${destdir}" "${release}" "${arch}" \
+		"${mirror}" "standard" "${sourcebuild}"
+
+	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	res=$?
+
+	if [ "${res}" = "0" ]
+	then
+		sha256 -q "${destdir}.tgz" > "${destdir}.tgz.sha256"
+	fi
+
+	return ${res}
 }
 
 create_portjail()
@@ -164,18 +218,43 @@ create_portjail()
 	local release="${1}"
 	local arch="${2}"
 	local mirror="${3}"
+	local sourcebuild="${4}"
 	local destdir="${jails_dir}/${arch}/freenas-portjail-${release}"
+	local res
 
-	do_create_jail "${destdir}" "${arch}"
+	if [ -f "${destdir}.tgz.sha256" ]
+	then
+		local sha256_1="$(sha256 -q "${destdir}.tgz")"
+		local sha256_2="$(cat "${destdir}.tgz.sha256")"
+		if [ "${sha256_1}" != "${sha256_2}" ]
+		then
+			rm -f "${destdir}.tgz"
+		else
+			return 0	
+		fi
+	fi
+
+	do_create_jail "${destdir}" "${release}" "${arch}" \
+		"${mirror}" "portjail" "${sourcebuild}"
 	grab_ports_tarball "${release}" "${mirror}"
 
-	tar -cvf - -C "${jails_src}/FreeBSD" --exclude '\.git' \
-		. 2>/dev/null | tar -xvf - -C "${destdir}/usr/src" 2>/dev/null
+	if [ "${sourcebuild}" = "1" ]
+	then
+		tar -pcvf - -C "${jails_src}/FreeBSD" --exclude '\.git' \
+			. 2>/dev/null | tar -pxvf - -C "${destdir}/usr/src" 2>/dev/null
+	fi
 
-	tar -zxvf "${jails_src}/ports.tar.gz" -C "${destdir}/usr"
+	tar -pzxvf "${jails_src}/ports.tar.gz" -C "${destdir}/usr"
 
-	tar -cvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
-	return $?
+	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	res=$?
+
+	if [ "${res}" = "0" ]
+	then
+		sha256 -q "${destdir}.tgz" > "${destdir}.tgz.sha256"
+	fi
+
+	return ${res}
 }
 
 create_jail()
@@ -183,19 +262,17 @@ create_jail()
 	local jailtype="${1}"
 	local release="${2}"
 	local arch="${3}"
+	local mirror="${4}"
+	local sourcebuild="${5}"
+	local function
 
 	case "${jailtype}" in
-		pluginjail)
-			create_pluginjail "${release}" "${arch}" "${mirror}"
-			;;
-		standard)
-			create_standard "${release}" "${arch}" "${mirror}"
-			;;
-		portjail)
-			create_portjail "${release}" "${arch}" "${mirror}"
-			;;
+		pluginjail) function="create_pluginjail" ;;
+		standard) function="create_standard" ;;
+		portjail) function="create_portjail" ;;
 	esac
 
+	${function} "${release}" "${arch}" "${mirror}" "${sourcebuild}"
 	return $?
 }
 
@@ -330,6 +407,7 @@ main()
 	local release="9.2-RELEASE"
 	local mirror="ftp://ftp.freebsd.org"
 	local name="freenas-${jailtype}"
+	local sourcebuild=0
 
 	if [ "$(id -u)" != "0" ]
 	then
@@ -337,7 +415,7 @@ main()
 		exit 2
 	fi
 
-	while getopts "t:a:r:m:n:" opt
+	while getopts "t:a:r:m:n:s" opt
 	do
 		case "${opt}" in 
 			t)	jailtype="${OPTARG}"
@@ -360,6 +438,7 @@ main()
 			r)	release="${OPTARG}" ;;
 			m)	mirror="${OPTARG}" ;;
 			n)	name="${OPTARG}" ;;
+			s)	sourcebuild=1 ;;
 
 			\?)	usage
 				exit 1
@@ -376,10 +455,13 @@ main()
 	mkdir -p "${jails_build}"
 	chown root:wheel "${jails_build}"
 
-#	checkout_source "${jails_src}"
-	build_source "${arch}"
+#	if [ "${sourcebuild}" = "1" ]
+#	then
+#		checkout_source "${jails_src}"
+#		build_source "${arch}"
+#	fi
 
-	create_jail "${jailtype}" "${release}" "${arch}" "${mirror}"
+	create_jail "${jailtype}" "${release}" "${arch}" "${mirror}" "${sourcebuild}"
 
 	return $?
 }
