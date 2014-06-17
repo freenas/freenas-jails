@@ -63,6 +63,12 @@ pluginjail_x64: git-verify
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t pluginjail -a x64 -r ${RELEASE} -m ${MIRROR}
 
+custom: git-verify
+.if defined(NAME)
+	@cd ${TOP};
+	${ENV_SETUP} ${CREATE_JAIL} -t standard -a x64 -r ${RELEASE} -m ${MIRROR} -n ${NAME}
+.endif
+
 
 pluginjail: pluginjail_x86 pluginjail_x64
 standard: standard_x86 standard_x64
@@ -122,6 +128,13 @@ clean_pluginjail_x64:
 	rm -rf ${PLUGINJAIL_PATH_x64}
 .endif
 clean_pluginjail: clean_pluginjail_x86 clean_pluginjail_x64
+
+clean_custom:
+.if defined(NAME) && exists(${JDIR}/x64/${NAME}-${RELEASE}.tgz)
+	find ${JDIR}/x64/${NAME}-${RELEASE}|xargs chflags noschg
+	rm -rf ${JDIR}/x64/${NAME}-${RELEASE}.tgz
+	rm -rf ${JDIR}/x64/${NAME}-${RELEASE}
+.endif
 
 clean: git-verify clean_standard clean_portjail clean_pluginjail
 	@rm -rf ${JDIR}
