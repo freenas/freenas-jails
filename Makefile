@@ -7,8 +7,9 @@ TOP=    ${PWD}
 JDIR=	${TOP}/jails
 CREATE_JAIL=	${TOP}/create_jail
 
-TARGETS=	pluginjail standard portjail
-RELEASE=	9.2-RELEASE
+#TARGETS=	pluginjail standard portjail jail
+TARGETS=	pluginjail jail
+RELEASE=	9.3-RELEASE
 MIRROR=		ftp://ftp.freebsd.org
 
 STANDARD_PATH_x86=	${JDIR}/x86/freenas-standard-${RELEASE}
@@ -17,6 +18,8 @@ PORTJAIL_PATH_x86=	${JDIR}/x86/freenas-portjail-${RELEASE}
 PORTJAIL_PATH_x64=	${JDIR}/x64/freenas-portjail-${RELEASE}
 PLUGINJAIL_PATH_x86=	${JDIR}/x86/freenas-pluginjail-${RELEASE}
 PLUGINJAIL_PATH_x64=	${JDIR}/x64/freenas-pluginjail-${RELEASE}
+JAIL_PATH_x86=		${JDIR}/x86/freenas-jail-${RELEASE}
+JAIL_PATH_x64=		${JDIR}/x64/freenas-jail-${RELEASE}
 
 ARCH!=	uname -m
 .if ${ARCH} == "amd64"
@@ -63,6 +66,14 @@ pluginjail_x64: git-verify
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t pluginjail -a x64 -r ${RELEASE} -m ${MIRROR}
 
+jail_x86: git-verify
+	@cd ${TOP};
+	${ENV_SETUP} ${CREATE_JAIL} -t jail -a x86 -r ${RELEASE} -m ${MIRROR}
+
+jail_x64: git-verify
+	@cd ${TOP};
+	${ENV_SETUP} ${CREATE_JAIL} -t jail -a x64 -r ${RELEASE} -m ${MIRROR}
+
 custom: git-verify
 .if defined(NAME)
 	@cd ${TOP};
@@ -70,9 +81,10 @@ custom: git-verify
 .endif
 
 
-pluginjail: pluginjail_x86 pluginjail_x64
+pluginjail: pluginjail_x86 pluginjail_x64 
 standard: standard_x86 standard_x64
 portjail: portjail_x86 portjail_x64
+jail: jail_x86 jail_x64
 
 
 clean_standard_x86:
@@ -129,6 +141,24 @@ clean_pluginjail_x64:
 .endif
 clean_pluginjail: clean_pluginjail_x86 clean_pluginjail_x64
 
+clean_jail_x86:
+.if exists(${JAIL_PATH_x86}.tgz)
+	rm -rf ${JAIL_PATH_x86}.tgz
+.endif
+.if exists(${JAIL_PATH_x86})
+	find ${JAIL_PATH_x86}|xargs chflags noschg
+	rm -rf ${JAIL_PATH_x86}
+.endif
+clean_jail_x64:
+.if exists(${JAIL_PATH_x64}.tgz)
+	rm -rf ${JAIL_PATH_x64}.tgz
+.endif
+.if exists(${JAIL_PATH_x64})
+	find ${JAIL_PATH_x64}|xargs chflags noschg
+	rm -rf ${JAIL_PATH_x64}
+.endif
+clean_pluginjail: clean_jail_x86 clean_jail_x64
+
 clean_custom:
 .if defined(NAME) && exists(${JDIR}/x64/${NAME}-${RELEASE}.tgz)
 	find ${JDIR}/x64/${NAME}-${RELEASE}|xargs chflags noschg
@@ -136,7 +166,7 @@ clean_custom:
 	rm -rf ${JDIR}/x64/${NAME}-${RELEASE}
 .endif
 
-clean: git-verify clean_standard clean_portjail clean_pluginjail
+clean: git-verify clean_standard clean_portjail clean_pluginjail clean_jail
 	@rm -rf ${JDIR}
 
 git-verify:

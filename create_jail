@@ -70,6 +70,14 @@ get_pluginjail_packages()
 __EOF__
 }
 
+get_jail_packages()
+{
+	cat <<-__EOF__
+		devel/subversion
+		devel/git
+__EOF__
+}
+
 do_create_jail()
 {
 	local destdir="${1}"
@@ -139,7 +147,6 @@ do_create_jail()
 		echo "nameserver 8.8.8.8" > "${destdir}/etc/resolv.conf"
 		env ASSUME_ALWAYS_YES=1 \
 			chroot "${destdir}" /usr/sbin/pkg install -y pkg
-
 		echo "WITH_PKGNG=yes" >> "${destdir}/etc/make.conf"
 
 		mkdir -p "${destdir}/usr/local/etc/pkg/repos"
@@ -267,6 +274,63 @@ create_portjail()
 
 create_jail()
 {
+	local release="${1}"
+	local arch="${2}"
+	local mirror="${3}"
+	local name="${4}"
+	local sourcebuild=0
+	local destdir="${jails_dir}/${arch}/${name}-${release}"
+	local res
+
+	if [ -f "${destdir}.tgz.sha256" ]
+	then
+		local sha256_1="$(sha256 -q "${destdir}.tgz")"
+		local sha256_2="$(cat "${destdir}.tgz.sha256")"
+		if [ "${sha256_1}" != "${sha256_2}" ]
+		then
+			rm -f "${destdir}.tgz"
+		else
+			return 0	
+		fi
+	fi
+
+	do_create_jail "${destdir}" "${release}" "${arch}" \
+		"${mirror}" "portjail" "${name}"
+
+	echo "nameserver 8.8.8.8" > "${destdir}/etc/resolv.conf"
+	env ASSUME_ALWAYS_YES=1 \
+			chroot "${destdir}" /usr/sbin/pkg install -y pkg
+	rm -f "${destdir}/usr/local/etc/pkg.conf"
+	for pkg in $(get_jail_packages)
+	do
+		env ASSUME_ALWAYS_YES=1 \
+			chroot "${destdir}" /usr/sbin/pkg install -y ${pkg}
+
+	done
+
+	grab_ports_tarball "${release}" "${mirror}"
+
+	if [ "${sourcebuild}" = "1" ]
+	then
+		tar -pcvf - -C "${jails_src}/FreeBSD" --exclude '\.git' \
+			. 2>/dev/null | tar -pxvf - -C "${destdir}/usr/src" 2>/dev/null
+	fi
+
+	tar -pzxvf "${jails_src}/ports.tar.gz" -C "${destdir}/usr"
+
+	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	res=$?
+
+	if [ "${res}" = "0" ]
+	then
+		sha256 -q "${destdir}.tgz" > "${destdir}.tgz.sha256"
+	fi
+
+	return ${res}
+}
+
+create_jail_type()
+{
 	local jailtype="${1}"
 	local release="${2}"
 	local arch="${3}"
@@ -278,6 +342,7 @@ create_jail()
 		pluginjail) function="create_pluginjail" ;;
 		standard) function="create_standard" ;;
 		portjail) function="create_portjail" ;;
+		jail) function="create_jail" ;;
 	esac
 
 	${function} "${release}" "${arch}" "${mirror}" "${name}"
@@ -340,6 +405,9 @@ check_jailtype()
 			return 0
 			;;
 		portjail)
+			return 0
+			;;
+		jail)
 			return 0
 			;;
 	esac
@@ -469,7 +537,7 @@ main()
 		build_source "${arch}"
 	fi
 
-	create_jail "${jailtype}" "${release}" "${arch}" "${mirror}" "${name}"
+	create_jail_type "${jailtype}" "${release}" "${arch}" "${mirror}" "${name}"
 
 	return $?
 }
