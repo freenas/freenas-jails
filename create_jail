@@ -190,7 +190,7 @@ create_pluginjail()
 	return 0
 }
 
-create_standard()
+old_create_standard()
 {
 	local release="${1}"
 	local arch="${2}"
@@ -272,7 +272,7 @@ create_portjail()
 	return ${res}
 }
 
-create_jail()
+create_standard()
 {
 	local release="${1}"
 	local arch="${2}"
@@ -342,7 +342,6 @@ create_jail_type()
 		pluginjail) function="create_pluginjail" ;;
 		standard) function="create_standard" ;;
 		portjail) function="create_portjail" ;;
-		jail) function="create_jail" ;;
 	esac
 
 	${function} "${release}" "${arch}" "${mirror}" "${name}"
@@ -405,9 +404,6 @@ check_jailtype()
 			return 0
 			;;
 		portjail)
-			return 0
-			;;
-		jail)
 			return 0
 			;;
 	esac

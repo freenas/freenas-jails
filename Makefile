@@ -7,8 +7,7 @@ TOP=    ${PWD}
 JDIR=	${TOP}/jails
 CREATE_JAIL=	${TOP}/create_jail
 
-#TARGETS=	pluginjail standard portjail jail
-TARGETS=	pluginjail jail
+TARGETS=	pluginjail standard
 RELEASE=	9.3-RELEASE
 MIRROR=		ftp://ftp.freebsd.org
 
