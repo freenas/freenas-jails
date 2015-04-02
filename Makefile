@@ -7,7 +7,7 @@ TOP=    ${PWD}
 JDIR=	${TOP}/jails
 CREATE_JAIL=	${TOP}/create_jail
 
-TARGETS=	pluginjail_x64 standard_x64 mtree_x64
+TARGETS=	pluginjail standard mtree
 RELEASE=	9.3-RELEASE
 MIRROR=		ftp://ftp.freebsd.org
 
