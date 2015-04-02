@@ -62,7 +62,7 @@ ${MTREE_STANDARD_x64}:
 	@cd ${TOP};
 	mtree -c -p ${STANDARD_PATH_x64} > ${MTREE_STANDARD_x64}
 
-${TARBALL_STANDARD_86}:
+${TARBALL_STANDARD_x86}:
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t standard -a x86 -r ${RELEASE} -m ${MIRROR}
 
@@ -82,7 +82,7 @@ ${MTREE_PLUGINJAIL_x64}:
 	@cd ${TOP};
 	mtree -c -p ${PLUGINJAIL_PATH_x64} > ${MTREE_PLUGINJAIL_x64}
 
-${TARBALL_PLUGINJAIL_86}:
+${TARBALL_PLUGINJAIL_x86}:
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t pluginjail -a x86 -r ${RELEASE} -m ${MIRROR}
 
