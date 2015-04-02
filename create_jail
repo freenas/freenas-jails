@@ -48,7 +48,7 @@ get_pluginjail_packages()
 		converters/base64
 		converters/iconv
 		converters/libiconv
-		databases/db42
+		databases/db48
 		databases/gdbm
 		databases/sqlite3
 		devel/apr1
@@ -56,7 +56,6 @@ get_pluginjail_packages()
 		devel/libtool
 		devel/pcre
 		devel/pkgconf
-		devel/py-distribute
 		devel/subversion
 		dns/libidn
 		ftp/wget
@@ -65,8 +64,7 @@ get_pluginjail_packages()
 		security/ca_root_nss
 		textproc/expat2
 		textproc/libxml2
-		www/aria2
-		www/neon29
+		www/neon
 __EOF__
 }
 
@@ -145,7 +143,7 @@ do_create_jail()
 		done
 
 		echo "nameserver 8.8.8.8" > "${destdir}/etc/resolv.conf"
-		env ASSUME_ALWAYS_YES=1 \
+		env ASSUME_ALWAYS_YES=true \
 			chroot "${destdir}" /usr/sbin/pkg install -y pkg
 		echo "WITH_PKGNG=yes" >> "${destdir}/etc/make.conf"
 
@@ -175,12 +173,12 @@ create_pluginjail()
 	do_create_jail "${destdir}" "${release}" "${arch}" \
 		"${mirror}" "pluginjail" "${name}"
 	echo "nameserver 8.8.8.8" > "${destdir}/etc/resolv.conf"
-	env ASSUME_ALWAYS_YES=1 \
+	env ASSUME_ALWAYS_YES=true \
 			chroot "${destdir}" /usr/sbin/pkg install -y pkg
 	rm -f "${destdir}/usr/local/etc/pkg.conf"
 	for pkg in $(get_pluginjail_packages)
 	do
-		env ASSUME_ALWAYS_YES=1 \
+		env ASSUME_ALWAYS_YES=true \
 			chroot "${destdir}" /usr/sbin/pkg install -y ${pkg}
 
 	done
@@ -298,12 +296,12 @@ create_standard()
 		"${mirror}" "portjail" "${name}"
 
 	echo "nameserver 8.8.8.8" > "${destdir}/etc/resolv.conf"
-	env ASSUME_ALWAYS_YES=1 \
+	env ASSUME_ALWAYS_YES=true \
 			chroot "${destdir}" /usr/sbin/pkg install -y pkg
 	rm -f "${destdir}/usr/local/etc/pkg.conf"
 	for pkg in $(get_jail_packages)
 	do
-		env ASSUME_ALWAYS_YES=1 \
+		env ASSUME_ALWAYS_YES=true \
 			chroot "${destdir}" /usr/sbin/pkg install -y ${pkg}
 
 	done

@@ -7,7 +7,7 @@ TOP=    ${PWD}
 JDIR=	${TOP}/jails
 CREATE_JAIL=	${TOP}/create_jail
 
-TARGETS=	pluginjail standard
+TARGETS=	pluginjail_x64 standard_x64 mtree_x64
 RELEASE=	9.3-RELEASE
 MIRROR=		ftp://ftp.freebsd.org
 
@@ -19,6 +19,17 @@ PLUGINJAIL_PATH_x86=	${JDIR}/x86/freenas-pluginjail-${RELEASE}
 PLUGINJAIL_PATH_x64=	${JDIR}/x64/freenas-pluginjail-${RELEASE}
 JAIL_PATH_x86=		${JDIR}/x86/freenas-jail-${RELEASE}
 JAIL_PATH_x64=		${JDIR}/x64/freenas-jail-${RELEASE}
+
+TARBALL_STANDARD_x86=	${STANDARD_PATH_x86}.tgz
+TARBALL_STANDARD_x64=	${STANDARD_PATH_x64}.tgz
+TARBALL_PLUGINJAIL_x86=	${PLUGINJAIL_PATH_x86}.tgz
+TARBALL_PLUGINJAIL_x64=	${PLUGINJAIL_PATH_x64}.tgz
+
+MTREE_STANDARD_x86=	${STANDARD_PATH_x86}.mtree
+MTREE_STANDARD_x64=	${STANDARD_PATH_x64}.mtree
+MTREE_PLUGINJAIL_x86=	${PLUGINJAIL_PATH_x86}.mtree
+MTREE_PLUGINJAIL_x64=	${PLUGINJAIL_PATH_x64}.mtree
+
 
 ARCH!=	uname -m
 .if ${ARCH} == "amd64"
@@ -41,13 +52,48 @@ list:
 
 help: list
 
-standard_x86: git-verify
+${TARBALL_STANDARD_x64}:
+	@cd ${TOP};
+	${ENV_SETUP} ${CREATE_JAIL} -t standard -a x64 -r ${RELEASE} -m ${MIRROR}
+
+${TARBALL_STANDARD_x64}.sha256: ${TARBALL_STANDARD_x64}
+
+${MTREE_STANDARD_x64}:
+	@cd ${TOP};
+	mtree -c -p ${STANDARD_PATH_x64} > ${MTREE_STANDARD_x64}
+
+${TARBALL_STANDARD_86}:
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t standard -a x86 -r ${RELEASE} -m ${MIRROR}
 
-standard_x64: git-verify
+${TARBALL_STANDARD_x86}.sha256: ${TARBALL_STANDARD_x86}
+
+${MTREE_STANDARD_x86}:
 	@cd ${TOP};
-	${ENV_SETUP} ${CREATE_JAIL} -t standard -a x64 -r ${RELEASE} -m ${MIRROR}
+	mtree -c -p ${STANDARD_PATH_x86} > ${MTREE_STANDARD_x86}
+
+${TARBALL_PLUGINJAIL_x64}:
+	@cd ${TOP};
+	${ENV_SETUP} ${CREATE_JAIL} -t pluginjail -a x64 -r ${RELEASE} -m ${MIRROR}
+
+${TARBALL_PLUGINJAIL_x64}.sha256: ${TARBALL_PLUGINJAIL_x64}
+
+${MTREE_PLUGINJAIL_x64}:
+	@cd ${TOP};
+	mtree -c -p ${PLUGINJAIL_PATH_x64} > ${MTREE_PLUGINJAIL_x64}
+
+${TARBALL_PLUGINJAIL_86}:
+	@cd ${TOP};
+	${ENV_SETUP} ${CREATE_JAIL} -t pluginjail -a x86 -r ${RELEASE} -m ${MIRROR}
+
+${TARBALL_PLUGINJAIL_x86}.sha256: ${TARBALL_PLUGINJAIL_x86}
+
+${MTREE_PLUGINJAIL_x86}:
+	@cd ${TOP};
+	mtree -c -p ${PLUGINJAIL_PATH_x86} > ${MTREE_PLUGINJAIL_x86}
+
+standard_x86: git-verify ${TARBALL_STANDARD_x86}.sha256
+standard_x64: git-verify ${TARBALL_STANDARD_x64}.sha256
 
 portjail_x86: git-verify
 	@cd ${TOP};
@@ -57,21 +103,15 @@ portjail_x64: git-verify
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t portjail -a x64 -r ${RELEASE} -m ${MIRROR}
 
-pluginjail_x86: git-verify
-	@cd ${TOP};
-	${ENV_SETUP} ${CREATE_JAIL} -t pluginjail -a x86 -r ${RELEASE} -m ${MIRROR}
+pluginjail_x86: git-verify ${TARBALL_PLUGINJAIL_x86}.sha256
+pluginjail_x64: git-verify ${TARBALL_PLUGINJAIL_x64}.sha256
 
-pluginjail_x64: git-verify
-	@cd ${TOP};
-	${ENV_SETUP} ${CREATE_JAIL} -t pluginjail -a x64 -r ${RELEASE} -m ${MIRROR}
+pluginjail_x86_mtree: pluginjail_x86 ${MTREE_PLUGINJAIL_x86}
+pluginjail_x64_mtree: pluginjail_x64 ${MTREE_PLUGINJAIL_x64}
 
-jail_x86: git-verify
-	@cd ${TOP};
-	${ENV_SETUP} ${CREATE_JAIL} -t jail -a x86 -r ${RELEASE} -m ${MIRROR}
+standard_x86_mtree: standard_x86 ${MTREE_STANDARD_x86}
+standard_x64_mtree: standard_x64 ${MTREE_STANDARD_x64}
 
-jail_x64: git-verify
-	@cd ${TOP};
-	${ENV_SETUP} ${CREATE_JAIL} -t jail -a x64 -r ${RELEASE} -m ${MIRROR}
 
 custom: git-verify
 .if defined(NAME)
@@ -83,7 +123,10 @@ custom: git-verify
 pluginjail: pluginjail_x86 pluginjail_x64 
 standard: standard_x86 standard_x64
 portjail: portjail_x86 portjail_x64
-jail: jail_x86 jail_x64
+
+mtree: mtree_x86 mtree_x64
+mtree_x86: pluginjail_x86_mtree standard_x86_mtree
+mtree_x64: pluginjail_x64_mtree standard_x64_mtree
 
 
 clean_standard_x86:
@@ -165,7 +208,7 @@ clean_custom:
 	rm -rf ${JDIR}/x64/${NAME}-${RELEASE}
 .endif
 
-clean: git-verify clean_standard clean_portjail clean_pluginjail clean_jail
+clean: git-verify clean_standard clean_portjail clean_pluginjail 
 	@rm -rf ${JDIR}
 
 git-verify:
@@ -176,7 +219,6 @@ git-verify:
 		exit 1; \
         fi
 	@echo "NOTICE: You are building from the ${GIT_LOCATION} git repo."
-
 
 git-internal:
 	@echo "INTERNAL" > ${GIT_REPO_SETTING}
