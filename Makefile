@@ -60,7 +60,7 @@ ${TARBALL_STANDARD_x64}.sha256: ${TARBALL_STANDARD_x64}
 
 ${MTREE_STANDARD_x64}:
 	@cd ${TOP};
-	mtree -c -p ${STANDARD_PATH_x64} > ${MTREE_STANDARD_x64}
+	mtree -c -p ${STANDARD_PATH_x64} -k sha256digest > ${MTREE_STANDARD_x64}
 
 ${TARBALL_STANDARD_x86}:
 	@cd ${TOP};
@@ -70,7 +70,7 @@ ${TARBALL_STANDARD_x86}.sha256: ${TARBALL_STANDARD_x86}
 
 ${MTREE_STANDARD_x86}:
 	@cd ${TOP};
-	mtree -c -p ${STANDARD_PATH_x86} > ${MTREE_STANDARD_x86}
+	mtree -c -p ${STANDARD_PATH_x86} -k sha256digest > ${MTREE_STANDARD_x86}
 
 ${TARBALL_PLUGINJAIL_x64}:
 	@cd ${TOP};
@@ -80,7 +80,7 @@ ${TARBALL_PLUGINJAIL_x64}.sha256: ${TARBALL_PLUGINJAIL_x64}
 
 ${MTREE_PLUGINJAIL_x64}:
 	@cd ${TOP};
-	mtree -c -p ${PLUGINJAIL_PATH_x64} > ${MTREE_PLUGINJAIL_x64}
+	mtree -c -p ${PLUGINJAIL_PATH_x64} -k sha256digest > ${MTREE_PLUGINJAIL_x64}
 
 ${TARBALL_PLUGINJAIL_x86}:
 	@cd ${TOP};
@@ -90,7 +90,7 @@ ${TARBALL_PLUGINJAIL_x86}.sha256: ${TARBALL_PLUGINJAIL_x86}
 
 ${MTREE_PLUGINJAIL_x86}:
 	@cd ${TOP};
-	mtree -c -p ${PLUGINJAIL_PATH_x86} > ${MTREE_PLUGINJAIL_x86}
+	mtree -c -p ${PLUGINJAIL_PATH_x86} -k sha256digest > ${MTREE_PLUGINJAIL_x86}
 
 standard_x86: git-verify ${TARBALL_STANDARD_x86}.sha256
 standard_x64: git-verify ${TARBALL_STANDARD_x64}.sha256
