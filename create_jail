@@ -184,7 +184,7 @@ create_pluginjail()
 	done
 	chroot "${destdir}" /bin/mkdir /.plugins
 
-	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	tar -pcvjf "${destdir}.tgz" -C "${destdir}" . 2>/dev/null
 	return 0
 }
 
@@ -214,7 +214,7 @@ old_create_standard()
 	do_create_jail "${destdir}" "${release}" "${arch}" \
 		"${mirror}" "standard" "${name}"
 
-	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	tar -pcvjf "${destdir}.tgz" -C "${destdir}" . 2>/dev/null
 	res=$?
 
 	if [ "${res}" = "0" ]
@@ -253,13 +253,13 @@ create_portjail()
 
 	if [ "${sourcebuild}" = "1" ]
 	then
-		tar -pcvf - -C "${jails_src}/FreeBSD" --exclude '\.git' \
+		tar -pcf - -C "${jails_src}/FreeBSD" --exclude '\.git' \
 			. 2>/dev/null | tar -pxvf - -C "${destdir}/usr/src" 2>/dev/null
 	fi
 
 	tar -pzxvf "${jails_src}/ports.tar.gz" -C "${destdir}/usr"
 
-	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	tar -pcvjf "${destdir}.tgz" -C "${destdir}" . 2>/dev/null
 	res=$?
 
 	if [ "${res}" = "0" ]
@@ -310,13 +310,13 @@ create_standard()
 
 	if [ "${sourcebuild}" = "1" ]
 	then
-		tar -pcvf - -C "${jails_src}/FreeBSD" --exclude '\.git' \
+		tar -pcf - -C "${jails_src}/FreeBSD" --exclude '\.git' \
 			. 2>/dev/null | tar -pxvf - -C "${destdir}/usr/src" 2>/dev/null
 	fi
 
 	tar -pzxvf "${jails_src}/ports.tar.gz" -C "${destdir}/usr"
 
-	tar -pcvjf - -C "${destdir}" . > "${destdir}.tgz" 2>/dev/null
+	tar -pcvjf "${destdir}.tgz" -C "${destdir}" . 2>/dev/null
 	res=$?
 
 	if [ "${res}" = "0" ]
