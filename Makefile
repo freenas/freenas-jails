@@ -38,13 +38,6 @@ ARCH=	x64
 ARCH=	x86
 .endif
 
-GIT_REPO_SETTING=${TOP}/.git-repo-setting
-.if exists(${GIT_REPO_SETTING})
-GIT_LOCATION!=cat ${GIT_REPO_SETTING}
-.endif
-
-ENV_SETUP=env GIT_LOCATION=${GIT_LOCATION}
-
 .include <bsd.prog.mk>
 
 list:
@@ -92,19 +85,19 @@ ${MTREE_PLUGINJAIL_x86}:
 	@cd ${TOP};
 	mtree -c -p ${PLUGINJAIL_PATH_x86} -k sha256digest > ${MTREE_PLUGINJAIL_x86}
 
-standard_x86: git-verify ${TARBALL_STANDARD_x86}.sha256
-standard_x64: git-verify ${TARBALL_STANDARD_x64}.sha256
+standard_x86: ${TARBALL_STANDARD_x86}.sha256
+standard_x64: ${TARBALL_STANDARD_x64}.sha256
 
-portjail_x86: git-verify
+portjail_x86:
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t portjail -a x86 -r ${RELEASE} -m ${MIRROR}
 
-portjail_x64: git-verify
+portjail_x64:
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t portjail -a x64 -r ${RELEASE} -m ${MIRROR}
 
-pluginjail_x86: git-verify ${TARBALL_PLUGINJAIL_x86}.sha256
-pluginjail_x64: git-verify ${TARBALL_PLUGINJAIL_x64}.sha256
+pluginjail_x86: ${TARBALL_PLUGINJAIL_x86}.sha256
+pluginjail_x64: ${TARBALL_PLUGINJAIL_x64}.sha256
 
 pluginjail_x86_mtree: pluginjail_x86 ${MTREE_PLUGINJAIL_x86}
 pluginjail_x64_mtree: pluginjail_x64 ${MTREE_PLUGINJAIL_x64}
@@ -113,7 +106,7 @@ standard_x86_mtree: standard_x86 ${MTREE_STANDARD_x86}
 standard_x64_mtree: standard_x64 ${MTREE_STANDARD_x64}
 
 
-custom: git-verify
+custom:
 .if defined(NAME)
 	@cd ${TOP};
 	${ENV_SETUP} ${CREATE_JAIL} -t standard -a x64 -r ${RELEASE} -m ${MIRROR} -n ${NAME}
@@ -208,27 +201,7 @@ clean_custom:
 	rm -rf ${JDIR}/x64/${NAME}-${RELEASE}
 .endif
 
-clean: git-verify clean_standard clean_portjail clean_pluginjail 
+clean: clean_standard clean_portjail clean_pluginjail 
 	@rm -rf ${JDIR}
-
-git-verify:
-	@if [ ! -f ${GIT_REPO_SETTING} ]; then \
-		echo "No git repo choice is set.  Please use \"make git-external\" to build as an "; \
-		echo "external developer or \"make git-internal\" to build as an iXsystems"; \
-		echo "internal developer.  You only need to do this once."; \
-		exit 1; \
-        fi
-	@echo "NOTICE: You are building from the ${GIT_LOCATION} git repo."
-
-git-internal:
-	@echo "INTERNAL" > ${GIT_REPO_SETTING}
-	@echo "You are set up for internal (iXsystems) development.  You can use"
-	@echo "the standard make targets now."
-
-git-external:
-	@echo "EXTERNAL" > ${GIT_REPO_SETTING}
-	@echo "You are set up for external (github) development.  You can use"
-	@echo "the standard make targets now."
-
 
 all: ${TARGETS}
