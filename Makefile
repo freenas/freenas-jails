@@ -8,7 +8,7 @@ JDIR=	${TOP}/jails
 CREATE_JAIL=	${TOP}/create_jail
 
 TARGETS=	pluginjail standard mtree
-RELEASE=	9.3-RELEASE
+RELEASE=	10.3-RC2
 MIRROR=		ftp://ftp.freebsd.org
 
 STANDARD_PATH_x86=	${JDIR}/x86/freenas-standard-${RELEASE}

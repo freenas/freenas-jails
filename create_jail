@@ -60,6 +60,7 @@ get_pluginjail_packages()
 		dns/libidn
 		ftp/wget
 		lang/python27
+		misc/compat9x
 		ports-mgmt/pkg
 		security/ca_root_nss
 		textproc/expat2
